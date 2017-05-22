@@ -1,0 +1,13 @@
+# .a libraries
+**/*.a
+
+# Temporary CMake files and directories
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+
+# The built executable
+gpbcuda
+
+# Output image
+output.jpg

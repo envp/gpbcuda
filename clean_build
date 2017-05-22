@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+#  Delete temporary files
+rm -rv CMakeFiles
+rm -v CMakeCache.txt cmake_install.cmake gpbcuda output.jpg
+
+# Build the target
+cmake . && make -j$(nproc)
