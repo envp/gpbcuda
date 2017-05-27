@@ -1,5 +1,4 @@
 #include <iostream>
-#include <typeinfo>
 #include <opencv2/opencv.hpp>
 
 #include <cuda.h>
@@ -18,9 +17,9 @@ void gpuBgrToGreyscale(unsigned char* devBgr, unsigned char* devGrey, int rows, 
 {
 
     // column index
-    int col = blockDim.x * blockIdx.x + threadIdx.x;
+    const int col = blockDim.x * blockIdx.x + threadIdx.x;
     // row index
-    int row = blockDim.y * blockIdx.y + threadIdx.y;
+    const int row = blockDim.y * blockIdx.y + threadIdx.y;
 
     if( row >= rows || col >= cols )
     {
@@ -50,8 +49,8 @@ void gpuBgrToLab(
         )
 {
     // Compute pixel row, column indices
-    int col = blockDim.x * blockIdx.x + threadIdx.x;
-    int row = blockDim.y * blockIdx.y + threadIdx.y;
+    const int col = blockDim.x * blockIdx.x + threadIdx.x;
+    const int row = blockDim.y * blockIdx.y + threadIdx.y;
 
 
     if( row >= rows || col >= cols )
@@ -119,9 +118,25 @@ void gpuBgrToLab(
     devB[c] = (unsigned char) (255 * b);
 }
 
+__global__
+void gpuComputeTextonAssignments(unsigned char* devGrey, unsigned char* devTexton, int rows, int cols)
+{
+    // Pixel indices
+    const int row = blockDim.x * blockIdx.x + threadIdx.x;
+    const int col = blockDim.y * blockIdx.y + threadIdx.y;
+
+    if( row >= rows || col >= cols )
+    {
+        return;
+    }
+}
+
+
 // TODO change this to return cuda error status values
 void multiScalePb(unsigned char* hostImage, unsigned char** hostOutput, int rows, int cols, int channels)
 {
+    // TODO Potential speedups using uchar4* (pad with an extra nul byte at the end)
+    // Performance comparisons here: https://devtalk.nvidia.com/default/topic/389971/uchar3-to-texure/
     unsigned char* devBgr;
     unsigned char* devGrey;
     unsigned char* devL;
@@ -137,11 +152,11 @@ void multiScalePb(unsigned char* hostImage, unsigned char** hostOutput, int rows
     // Same as bryancatanzaro/damascene
     const float GAMMA = 2.5;
 
-    cudaMalloc( (void**) &devBgr, nElems * sizeof(unsigned char) );
-    cudaMalloc( (void**) &devGrey, nPixels * sizeof(unsigned char) );
-    cudaMalloc( (void**) &devL, nPixels * sizeof(unsigned char) );
-    cudaMalloc( (void**) &devA, nPixels * sizeof(unsigned char) );
-    cudaMalloc( (void**) &devB, nPixels * sizeof(unsigned char) );
+    cudaMalloc( (void**) &devBgr,   nElems  * sizeof(unsigned char) );
+    cudaMalloc( (void**) &devGrey,  nPixels * sizeof(unsigned char) );
+    cudaMalloc( (void**) &devL,     nPixels * sizeof(unsigned char) );
+    cudaMalloc( (void**) &devA,     nPixels * sizeof(unsigned char) );
+    cudaMalloc( (void**) &devB,     nPixels * sizeof(unsigned char) );
 
     // Copy BGR image to device
     cudaMemcpy( devBgr, hostImage, nElems * sizeof(unsigned char), cudaMemcpyHostToDevice );
@@ -171,15 +186,17 @@ int main(int argc, char **argv)
     int rows = srcImg.rows;
     int cols = srcImg.cols;
 
+    
     unsigned char* hostBgr = srcImg.data;
     unsigned char* hostGrey = new unsigned char[rows * cols];
 
     multiScalePb(hostBgr, &hostGrey, srcImg.rows, srcImg.cols, srcImg.channels());
 
+
     Mat outImg(rows, cols, CV_8UC1, hostGrey);
 
     imwrite( argv[2], outImg);
-
+    
     // Free all allocated memory
     delete[] hostGrey;
 }
